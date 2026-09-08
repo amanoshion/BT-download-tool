@@ -1,21 +1,16 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <string.h>
-#include <arpa/inet>
+#include <arpa/inet.h>
 #include <unistd.h>
 
-#define IP "192.168.1.100"
-#define PORT 8888
 
-#define OK 0
-#define ERROR -1
+#include "protocol.h"
 
-#define S 64
-#define M 256
-#define L 1024
 int main(int argc, const char *argv[]) {
         // create socket stream
         int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -24,27 +19,32 @@ int main(int argc, const char *argv[]) {
                 return ERROR;
         }
         // define addr struct
-        struct sockaddr_in serverInfo;
+        struct sockaddr_in trackerInfo;
         // clear addr struct
-        memset(&serverInfo, 0, sizeof(serverInfo));
+        memset(&trackerInfo, 0, sizeof(trackerInfo));
         // ini IPV4 family
-        serverInfo.sin_family = AF_INET;
+        trackerInfo.sin_family = AF_INET;
         // ini socket port (endianness : host -> net)
-        serverInfo.sin_port = htons(PORT);
+        trackerInfo.sin_port = htons(PORT);
         // ini IP
-        serverInfo.sin_addr.s_addr = inet_addr(IP);
+        trackerInfo.sin_addr.s_addr = inet_addr(IP);
         // bind socket and address
-        int ret = bind(listen_fd, (struct sockaddr *)&serverInfo, sizeof(serverInfo));
-        if (ret == -1) {
+        int bind_ret = bind(listen_fd, (struct sockaddr *)&trackerInfo, sizeof(trackerInfo));
+        if (bind_ret == -1) {
                 perror("bind fail");
                 return ERROR;
         }
+
+        int listen_ret = listen(listen_fd, BACKLOG);
         struct sockaddr_in clientInfo;
         memset(&clientInfo, 0, sizeof(clientInfo));
         socklen_t clientInfo_len = sizeof(clientInfo);
 
         // loop wait for client connecting . . .
-        printf("server started\n");
+        printf("tracker started\n");
+
+        ini_peerlist(&peerlist);
+
         while(1) {
                 int connect_fd = accept(listen_fd, (struct sockaddr *)&clientInfo, &clientInfo_len);
                 if (connect_fd == -1) {
@@ -52,15 +52,17 @@ int main(int argc, const char *argv[]) {
                         return ERROR;
                 }
 
-                printf("client[%s : %d] connect to server\n", inet_ntoa(clientInfo.sin_addr), ntohs(clientInfo.sin_port));
-                // handle networking
+                printf("client[%s : %d] connect to client\n", inet_ntoa(clientInfo.sin_addr), ntohs(clientInfo.sin_port));
+
+
+                // handle send/recv
                 while(1) {
-                        char buf[L] = {0};
-                        int nbytes = recv(connect_fd, buf, sizeof(buf), 0);
-                        if (nbytes == -1) {
-                                perror("recv fail");
-                                return ERROR;
-                        }
+                        MSG recv_msg = {0};
+                        MSG send_msg = {0};
+
+                        recv_handler(connect_fd, &recv_msg);
+                        
+                        send_handler(connect_fd, &send_msg);
                         
                 }
         }
