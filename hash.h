@@ -3,6 +3,7 @@
 #include <sodium.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "protocol.h"
 #define ERROR -1
@@ -10,90 +11,182 @@
 
 // #define MAX_CONNECTED 1024
 #define FILE_SIZE 4096
-#define DEFAULT_HASH_TABLE_SIZE 256
-#define MAX_PEER_NUM_PER_FILE 128
 #define HASH_LEN 65
+#define MAX_HASH_TABLE_SIZE 256
+#define MAX_PEER_NUM_PER_FILE 128
 
-typedef struct FileData {
+typedef struct PeerData {
         int sockfd;
+        int port;
         char filename[S];
         char filepath[M];
-} FileData;
+        PeerData *next;
+} PeerData;
+
+typedef struct PeerHead {
+        PeerData *next;
+        int count;
+        int max_size;
+} PeerHead;
 
 typedef struct HashNode {
-        FileData filedatas[MAX_PEER_NUM_PER_FILE];
-        char hashkey[65];
-        struct HashNode *next;
+        PeerData *peerHead;
+        char hashkey[HASH_LEN];
+        HashNode *next;
 } HashNode;
 
 typedef struct {
-        HashNode *head;
-        int curr_size;
-        int curr_count;
-} HashTable;
+        HashNode *next;
+        int max_size;
+        int count;
+} HashHead;
 
-// TODO : add hashNode
-int add_hashNode(HashTable *ht, HashNode *hn) {
+void ini_hash(HashHead *head) {
+        // ini head 's basic var
+        head->max_size = MAX_HASH_TABLE_SIZE;
+        head->count = 0;
+        // ini full hashtables by head
+        HashNode *curr = head->next;
 
-}
+        PeerData peer_curr = NULL;
+        for (int i = 0; i < MAX_HASH_TABLE_SIZE; i++) {
+                curr = malloc(sizeof(HashNode));
+                // ini PeerData inside HashNode
+                peer_curr = curr->peerHead;
+                peer_curr = malloc(sizeof(PeerHead));
+                peer_curr->count = 0;
+                peer_curr->max_size = MAX_PEER_NUM_PER_FILE;
+                peer_curr->next = NULL;
 
-// TODO : delete_hashNode
-// TODO : search_hashNode by hashkey
-
-int realloc_hashTable(HashTable *ht) {
-        if (ht->curr_count < 0.8 * (ht->curr_size)) return;
-
-        int oldSize = ht->curr_size;
-        int newSize = oldSize * 1.5;
-
-        HashTable *new_table;
-        new_table = realloc(ht, newSize * sizeof(HashNode));
-        if (new_table == NULL) {
-                perror("realloc fail");
-                return ERROR;
-        } 
-
-        free_hasTable(ht);
-
-        new_table->curr_count = ht->curr_count;
-        new_table->curr_size = newSize;
-
-        return OK;
-}
-
-void *ini_hashTable(HashTable *ht) {
-        // ini head
-        memset(ht->hashkey, 0, strlen(ht->hashkey));
-        memset(ht->filedatas, 0, sizeof(FileData) * MAX_PEER_NUM_PER_FILE);
-        ht->next = NULL;
-        ht->curr_size = DEFAULT_HASH_TABLE_SIZE;
-        ht->curr_count = 0;
-        // ini nodes
-
-        HashNode *curr = ht->head;
-        for (int i = 0; i < DEFAULT_HASH_TABLE_SIZE; i++) {
-                curr->next = malloc(sizeof(HashNode));
+                memset(curr->hashkey, 0, HASH_LEN);
                 curr = curr->next;
-                memset(curr->hashkey, 0, strlen(curr->hashkey));
-                memset(curr->filedatas, 0, sizeof(FileData) * MAX_PEER_NUM_PER_FILE);
                 curr->next = NULL;
         }
         return;
 }
 
-void free_hasTable(HashTable *ht) {
+void free_hashTable(HashHead *head) {
         HashNode *prev = NULL;
-        HashNode *curr = ht->head;
-        for (int i = 0; i < ht->curr_size; i++) {
+        HashNode *curr = head;
+        for (int i = 0; i < head->max_size; i++) {
                 prev = curr;
                 if (curr->next != NULL) {
                         curr = curr->next;
                 }
                 if (prev != NULL) {
+                        PeerData *peer_prev = NULL;
+                        PeerData *peer_curr = curr->peerHead->next;
+                        for (int j = 0; j < curr->peerHead->max_size; j++) {
+                                peer_prev = peer_curr;
+                                if (peer_curr->next != NULL) {
+                                        peer_curr = peer_curr->next;
+                                }
+                                if (prev != NULL) {
+                                        free(peer_prev);
+                                }
+                        }
+                        free(curr->peerHead);
                         free(prev);
                 }
         }
         return;
+}
+
+int add_hashNode(HashHead *head, HashNode *hn) {
+        if (head == NULL) return;
+
+        HashNode *entry = head->head;
+        HashNode *next = NULL;
+        
+        if (entry->next != NULL) {
+                next = entry->next;
+        }
+
+        entry->next = hn;
+        hn->next = next;
+
+        head->curr_count++;
+
+        return OK;
+}
+
+HashNode *find_hashNode_prev_by_key(HashHead *head, char *hashkey) {
+        HashNode *entry = head;
+        _Bool isfound = 0;
+        while(entry->next != NULL) {
+                if (strncmp(entry->next->hashkey, hashkey, HASH_LEN) == 0) {
+                        isfound = 1;
+                        break;
+                } else {
+                        entry = entry->next;
+                }
+        }
+        if (isfound == 1) {
+                return entry;
+        } else {
+                return NULL;
+        }
+
+}
+
+int delete_hashNode(HashHead *head, char *hashkey) {
+        HashNode *entry_prev = find_hashNode_prev_by_key(head, hashkey);
+        if (entry_prev == NULL || entry_prev->next == NULL) return ERROR;
+
+        HashNode *destroy = entry_prev->next;
+        entry_prev->next = destroy->next;
+
+        PeerData *peer_prev = NULL;
+        PeerData *peer_curr = curr->peerHead->next;
+        for (int j = 0; j < curr->peerHead->max_size; j++) {
+                peer_prev = peer_curr;
+                if (peer_curr->next != NULL) {
+                        peer_curr = peer_curr->next;
+                }
+                if (prev != NULL) {
+                        free(peer_prev);
+                }
+        }
+        free(destroy->peerHead);
+
+        free(destroy);
+        head->curr_count--;
+        return OK;
+}
+
+// TODO : add add_filedata function etc
+// befor using this function, PeerData should be initialized already
+int add_peerData(HashHead *head, PeerData *data, char *hashkey) {
+        HashNode *ret = NULL;
+        ret_node = find_hashNode_by_key(head, hashkey);
+        
+        HashNode *new = NULL;
+
+        if (ret_node == NULL) {
+                // ini new HashNode
+                new = malloc(sizeof(HashNode));
+                strncpy(new->hashkey, hashkey, HASH_LEN);
+                new->next = NULL;
+                new->peerHead = malloc(PeerHead);
+                new->peerHead->count = 0;
+                new->peerHead->max_size = MAX_PEER_NUM_PER_FILE;
+                peerHead->next = data;
+                new->peerHead->count++;
+                // add new HashNode
+                add_hashNode(head, new);
+        } else {
+                // add PeerData
+                if (ret_node->peerHead->count >= ret_node->peerHead->max_size) {
+                        printf("warning : peerdatas reach max\n");
+                }
+                PeerData *peer_next = NULL;
+                if (ret_node->peerHead->next != NULL) {
+                        peer_next = ret_node->peerHead->next;
+                }
+                ret_node->peerHead->next = data;
+                data->next = peer_next;
+                ret_node->peerHead->max_size++;
+        }
 }
 
 void ini_libsodium() {
@@ -103,7 +196,8 @@ void ini_libsodium() {
         }
 }
 
-int file_blake2b(const char *filename, char *hashkey) {  // output len shoud be 65
+// calculate file's hashkey
+int file_blake2b(const char *filename, char *hashkey) {  // output's len shoud be 65
         FILE *file = fopen(filename, "rb");
         if (!file ) {
                 perror("open fail");
