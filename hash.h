@@ -129,6 +129,24 @@ HashNode *find_hashNode_prev_by_key(HashHead *head, char *hashkey) {
 
 }
 
+PeerData *find_peerNode_prev_by_key(PeerData *head, int sockfd) {
+        PeerData *entry = head;
+        _Bool isfound = 0;
+        while(entry->next != NULL) {
+                if (entry->next->sockfd == sockfd) {
+                        isfound = 1;
+                        break;
+                } else {
+                        entry = entry->next;
+                }
+        }
+        if (isfound == 1) {
+                return entry;
+        } else {
+                return NULL;
+        }
+}
+
 int delete_hashNode(HashHead *head, char *hashkey) {
         HashNode *entry_prev = find_hashNode_prev_by_key(head, hashkey);
         if (entry_prev == NULL || entry_prev->next == NULL) return ERROR;
@@ -154,14 +172,13 @@ int delete_hashNode(HashHead *head, char *hashkey) {
         return OK;
 }
 
-// TODO : add add_filedata function etc
-// befor using this function, PeerData should be initialized already
-int add_peerData(HashHead *head, PeerData *data, char *hashkey) {
-        HashNode *ret = NULL;
-        ret_node = find_hashNode_by_key(head, hashkey);
-        
-        HashNode *new = NULL;
+// befor using, PeerData should be initialized already
+int add_peerData(HashHead *head, char *hashkey, PeerData *data) {
+        HashNode *ret_prev_node = NULL;
+        ret_prev_node = find_hashNode_prev_by_key(head, hashkey);
+        HashNode *ret_node = ret_prev_node->next;
 
+        HashNode *new = NULL;
         if (ret_node == NULL) {
                 // ini new HashNode
                 new = malloc(sizeof(HashNode));
@@ -176,9 +193,6 @@ int add_peerData(HashHead *head, PeerData *data, char *hashkey) {
                 add_hashNode(head, new);
         } else {
                 // add PeerData
-                if (ret_node->peerHead->count >= ret_node->peerHead->max_size) {
-                        printf("warning : peerdatas reach max\n");
-                }
                 PeerData *peer_next = NULL;
                 if (ret_node->peerHead->next != NULL) {
                         peer_next = ret_node->peerHead->next;
@@ -186,6 +200,33 @@ int add_peerData(HashHead *head, PeerData *data, char *hashkey) {
                 ret_node->peerHead->next = data;
                 data->next = peer_next;
                 ret_node->peerHead->max_size++;
+        }
+        return OK;
+}
+
+int delete_peerData(HashHead *head, char *hashkey, int sockfd) {
+        HashNode *ret_node = NULL;
+        ret_node = find_hashNode_by_key(head, hashkey);
+
+        if (ret_node == NULL) {
+                return ERROR;
+        } else {
+                PeerData *ret_prev_peer = NULL;
+                ret_prev_peer = find_peerNode_prev_by_key(ret_node->peerHead, sockfd);
+                PeerData *ret_peer = NULL;
+                ret_peer = ret_prev_peer->next;
+
+                if (ret_peer != NULL) {
+                        if (ret_peer->next != NULL) {
+                                ret_prev_peer->next = ret_peer->next;
+                        } else {
+                                ret_prev_peer->next = NULL;
+                        }
+                        free(ret_peer);
+                        return OK;
+                } else {
+                        return ERROR;
+                }
         }
 }
 

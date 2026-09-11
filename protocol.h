@@ -13,16 +13,17 @@
 #define L 1024
 
 typedef enum {
-        ADD_PEER,
-        LEAVE_PEER,
+        REGISTER,
+        UNREGISTER,
+        PEER_LIST,
         REQUEST_PEER,
         RESPONSE_PEER,
 } MsgType;
 
 typedef struct {
         MsgType msgtype;
-        int sockfd;
-        char filename[S];
+        char *hashkey;
+        PeerData *peerData;
 } MSG;
 
 int recv_handler(int connect_fd, MSG *send_msg) {

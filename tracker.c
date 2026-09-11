@@ -8,10 +8,26 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-
 #include "protocol.h"
+#include "hash.h"
+
+// TODO : fullfill this
+void tracker_msg_handler(HashHead *head, MSG *msg) {
+        switch(msg->msgtype) {
+                case REGISTER:
+                        add_peerData(head, msg->hashkey, msg->peerData);
+                        break;
+                case UNREGISTER:
+                        delete_peerData(head, msg->hashkey, msg->peerData->sockfd);
+                        break;
+                default:
+                        break;
+        }
+}
 
 int main(int argc, const char *argv[]) {
+        ini_libsodium();
+
         // create socket stream
         int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
         if (listen_fd == -1) {
@@ -43,7 +59,8 @@ int main(int argc, const char *argv[]) {
         // loop wait for client connecting . . .
         printf("tracker started\n");
 
-        ini_peerlist(&peerlist);
+        HashHead head = {0};
+        ini_hash(&head);
 
         while(1) {
                 int connect_fd = accept(listen_fd, (struct sockaddr *)&clientInfo, &clientInfo_len);
@@ -61,10 +78,13 @@ int main(int argc, const char *argv[]) {
                         MSG send_msg = {0};
 
                         recv_handler(connect_fd, &recv_msg);
-                        
+                        tracker_msg_handler(&recv_msg);
+
                         send_handler(connect_fd, &send_msg);
                         
                 }
         }
+
+        free_hashTable(&head);
         return OK;
 }
