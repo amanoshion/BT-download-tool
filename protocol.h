@@ -13,11 +13,13 @@
 #define L 1024
 
 typedef enum {
-        REGISTER,
+        REGISTER,       
         UNREGISTER,
         PEER_LIST,
-        REQUEST_PEER,
-        RESPONSE_PEER,
+        REQUEST_DOWNLOAD,
+        RESPONSE_DOWNLOAD,
+        REQUEST_UPLOAD,
+        RESPONSE_UPLOAD
 } MsgType;
 
 typedef struct {

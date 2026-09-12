@@ -9,7 +9,29 @@
 #include <unistd.h>
 
 #include "protocol.h"
-#include "hash.h"
+#include "tracker.h"
+
+int request_dowload_func(HashHead *head, MSG *msg_recv, MSG *msg_send) {
+        HashNode *ret_node = find_hashNode_by_key(head, msg->hashkey);
+        if (ret_node == NULL) return ERROR;
+
+        if (ret_node->peerHead->next != NULL) {
+                PeerData *peer_curr = ret_node->peerHead->next;
+        } else {
+                return ERROR;
+        }
+        
+        while(peer_curr != NULL) {
+                memset(msg_send, 0, sizeof(MSG));
+                msg_send->msgtype = RESPONSE_DOWNLOAD;
+                msg_send->hashkey = msg_recv->hashkey;
+                msg_send->peerData->dst_sockfd = msg_recv->peerData->self_sock;
+                msg_send->peerData->dst_port = msg_recv->peerData->self_port;
+                
+                send_handler(msg_send);
+        }
+
+}
 
 // TODO : fullfill this
 void tracker_msg_handler(HashHead *head, MSG *msg) {
@@ -18,7 +40,14 @@ void tracker_msg_handler(HashHead *head, MSG *msg) {
                         add_peerData(head, msg->hashkey, msg->peerData);
                         break;
                 case UNREGISTER:
-                        delete_peerData(head, msg->hashkey, msg->peerData->sockfd);
+                        // TODO : if peer close, active this func
+                        if () {
+                                unregister(head, hashkey, sockfd);
+                        }
+                        break;
+                case REQUEST_DOWNLOAD:
+                        // TODO : send msg to all sockfd under a hashnode, declare which file's block they should upload, and let them do RESPONSE_DOWNLOAD operation
+                        
                         break;
                 default:
                         break;
@@ -80,8 +109,6 @@ int main(int argc, const char *argv[]) {
                         recv_handler(connect_fd, &recv_msg);
                         tracker_msg_handler(&recv_msg);
 
-                        send_handler(connect_fd, &send_msg);
-                        
                 }
         }
 

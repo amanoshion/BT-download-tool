@@ -10,26 +10,66 @@
 #include <unistd.h>
 #include <stdbool.h>
 
+#include <dirent.h>
+#include <sys/stat.h>
+#include <errno.h>
+
 #include "protocol.h"
-// TODO :
-void peer_msg_handler(MSG *msg) {
-        switch(msg->msgtype) {
-                case REQUEST_PEER:
-                        break;
-                case RESPONSE_PEER:
-                        break;
+
+#define DIR_PATH "./BT"
+// register
+int ensure_directory(const char *path) {
+        struct stat st;
+
+        if (stat(path, &st) == 0) {
+                if (S_ISDIR(st.st_mode)) {
+                        return OK;
+                }
+                return ERROR;
+        }
+        if (mkdir(path, 0755) == -1) {
+                return ERROR;
+        } 
+        return OK;
+}
+
+void register_func(int connect_fd, MSG *msg, const char *path) {
+        if ((ensure_directory(path)) == ERROR) return;
+
+        DIR *dir = opendir(path);
+        if (dir == NULL) {
+                return;
+        }
+        struct dirent *entry;
+        while((entry = readdir(path)) != NULL) {
+                if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+                        continue;                
+                }
+                memset(msg, 0, sizeof(MSG));
+                msg->peerData->sockfd = connect_fd;
+                msg->peerData->port = PORT;
+                strcmp(msg->filename, entry->d_name);
+                strcmp(msg->filepath, DIR_PATH);
+                send_handler(msg);
         }
         return;
 }
 
-void peer_msg_input(MSG *msg) {
-
+// request_dowload
+void request_download_func(int connect_fd, MSG *msg, char *hashkey) {
+        msg->msgtype = REQUEST_DOWNLOAD;
+        strcmp(msg->hashkey, hashkey);
+        msg->peerData->self_sockfd = connect_fd;
+        msg->peerData->self_port = PORT;
+        send_handler(msg);
 }
+// TODO : response_download
+
 int main(int argc, const char *argv[]) {
         // create socket stream
-        int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+        int connect_fd = socket(AF_INET, SOCK_STREAM, 0);
 
-        if (socket_fd == -1) {
+        if (connect_fd == -1) {
                 perror("create socket fail");
                 return ERROR;
         }
@@ -44,17 +84,15 @@ int main(int argc, const char *argv[]) {
         trackerInfo.sin_addr.s_addr = inet_addr(IP);
 
         // connect to tracker
-        int ret = connect(socket_fd, (const struct sockaddr *)&trackerInfo, sizeof(trackerInfo));
+        int ret = connect(connect_fd, (const struct sockaddr *)&trackerInfo, sizeof(trackerInfo));
         if (ret == -1) {
                 perror("connect to tracker fail");
                 return ERROR;
         }
 
-        // TODO : register peers, add files into peerData and send to tracker
-        while(1) {
-                MSG send_msg = {0};
-                send_handler(connect_fd, &send_msg);
-        }
+        //register peers
+        MSG msg = {0};
+        register_func(connect_fd, msg, DIR_PATH);
 
         pid_t pid;
         pid = fork();
@@ -65,8 +103,7 @@ int main(int argc, const char *argv[]) {
                 MSG send_msg = {0};
                 while(1) {
                         send_msg = {0};
-                        // TODO : fullfill msg
-                        send_handler(connect_fd, &send_msg);
+                        // TODO : send options
                 } 
                 exit(EXIT_SUCCESS);
         } else {                // dad process, recv msg

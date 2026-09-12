@@ -16,8 +16,11 @@
 #define MAX_PEER_NUM_PER_FILE 128
 
 typedef struct PeerData {
-        int sockfd;
-        int port;
+        int dst_sockfd;
+        int dst_port;
+        
+        int self_sockfd;
+        int self_port;
         char filename[S];
         char filepath[M];
         PeerData *next;
@@ -129,7 +132,26 @@ HashNode *find_hashNode_prev_by_key(HashHead *head, char *hashkey) {
 
 }
 
-PeerData *find_peerNode_prev_by_key(PeerData *head, int sockfd) {
+HashNode *find_hashNode_by_key(HashHead *head, char *hashkey) {
+        HashNode *entry = head;
+        _Bool isfound = 0;
+        while(entry->next != NULL) {
+                if (strncmp(entry->hashkey, hashkey, HASH_LEN) == 0) {
+                        isfound = 1;
+                        break;
+                } else {
+                        entry = entry->next;
+                }
+        }
+        if (isfound == 1) {
+                return entry;
+        } else {
+                return NULL;
+        }
+
+}
+
+PeerData *find_peerNode_prev_by_sockfd(PeerData *head, int sockfd) {
         PeerData *entry = head;
         _Bool isfound = 0;
         while(entry->next != NULL) {
@@ -147,31 +169,7 @@ PeerData *find_peerNode_prev_by_key(PeerData *head, int sockfd) {
         }
 }
 
-int delete_hashNode(HashHead *head, char *hashkey) {
-        HashNode *entry_prev = find_hashNode_prev_by_key(head, hashkey);
-        if (entry_prev == NULL || entry_prev->next == NULL) return ERROR;
-
-        HashNode *destroy = entry_prev->next;
-        entry_prev->next = destroy->next;
-
-        PeerData *peer_prev = NULL;
-        PeerData *peer_curr = curr->peerHead->next;
-        for (int j = 0; j < curr->peerHead->max_size; j++) {
-                peer_prev = peer_curr;
-                if (peer_curr->next != NULL) {
-                        peer_curr = peer_curr->next;
-                }
-                if (prev != NULL) {
-                        free(peer_prev);
-                }
-        }
-        free(destroy->peerHead);
-
-        free(destroy);
-        head->curr_count--;
-        return OK;
-}
-
+// register operation
 // befor using, PeerData should be initialized already
 int add_peerData(HashHead *head, char *hashkey, PeerData *data) {
         HashNode *ret_prev_node = NULL;
@@ -203,18 +201,47 @@ int add_peerData(HashHead *head, char *hashkey, PeerData *data) {
         }
         return OK;
 }
+// unregister operation
+int delete_hashNode(HashHead *head, char *hashkey) {
+        HashNode *entry_prev = find_hashNode_prev_by_key(head, hashkey);
+        if (entry_prev == NULL || entry_prev->next == NULL) return ERROR;
 
-int delete_peerData(HashHead *head, char *hashkey, int sockfd) {
-        HashNode *ret_node = NULL;
-        ret_node = find_hashNode_by_key(head, hashkey);
+        HashNode *destroy = entry_prev->next;
+        entry_prev->next = destroy->next;
 
-        if (ret_node == NULL) {
+        PeerData *peer_prev = NULL;
+        PeerData *peer_curr = curr->peerHead->next;
+        for (int j = 0; j < curr->peerHead->max_size; j++) {
+                peer_prev = peer_curr;
+                if (peer_curr->next != NULL) {
+                        peer_curr = peer_curr->next;
+                }
+                if (prev != NULL) {
+                        free(peer_prev);
+                }
+        }
+        free(destroy->peerHead);
+
+        free(destroy);
+        head->curr_count--;
+        return OK;
+}
+
+int delete_peerData(HashHead *head, HashNode *node, int sockfd) {
+        if (node == NULL) {
                 return ERROR;
         } else {
+                if (node->peerHead->next == NULL) {
+                        delete_hashNode(head, node->hashkey);
+                        return OK;
+                }
                 PeerData *ret_prev_peer = NULL;
-                ret_prev_peer = find_peerNode_prev_by_key(ret_node->peerHead, sockfd);
+                ret_prev_peer = find_peerNode_prev_by_sockfd(node->peerHead, sockfd);
+                if (ret_prev_peer == NULL) return ERROR;
                 PeerData *ret_peer = NULL;
-                ret_peer = ret_prev_peer->next;
+                if (ret_peer->next != NULL) {
+                        ret_peer = ret_prev_peer->next;
+                }
 
                 if (ret_peer != NULL) {
                         if (ret_peer->next != NULL) {
@@ -228,6 +255,22 @@ int delete_peerData(HashHead *head, char *hashkey, int sockfd) {
                         return ERROR;
                 }
         }
+}
+
+void unregister(HashHead *head, int sockfd) {
+        if (head->next == NULL) return;
+
+        HashNode *curr_node = head->next;
+
+        while(curr_node != NULL) {
+                int ret = delete_peerData(head, curr_node, sockfd);
+                if (ret == OK)  {
+                        continue;
+                } else {
+                        curr_node = curr_node->next;
+                }
+        }
+        return;
 }
 
 void ini_libsodium() {
