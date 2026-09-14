@@ -15,35 +15,6 @@
 #define MAX_HASH_TABLE_SIZE 256
 #define MAX_PEER_NUM_PER_FILE 128
 
-typedef struct PeerData {
-        int dst_sockfd;
-        int dst_port;
-        
-        int self_sockfd;
-        int self_port;
-        char filename[S];
-        char filepath[M];
-        PeerData *next;
-} PeerData;
-
-typedef struct PeerHead {
-        PeerData *next;
-        int count;
-        int max_size;
-} PeerHead;
-
-typedef struct HashNode {
-        PeerData *peerHead;
-        char hashkey[HASH_LEN];
-        HashNode *next;
-} HashNode;
-
-typedef struct {
-        HashNode *next;
-        int max_size;
-        int count;
-} HashHead;
-
 void ini_hash(HashHead *head) {
         // ini head 's basic var
         head->max_size = MAX_HASH_TABLE_SIZE;

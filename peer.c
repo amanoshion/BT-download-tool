@@ -15,8 +15,9 @@
 #include <errno.h>
 
 #include "protocol.h"
-
+#include "peer.h"
 #define DIR_PATH "./BT"
+
 // register
 int ensure_directory(const char *path) {
         struct stat st;
@@ -54,16 +55,61 @@ void register_func(int connect_fd, MSG *msg, const char *path) {
         }
         return;
 }
-
-// request_dowload
-void request_download_func(int connect_fd, MSG *msg, char *hashkey) {
-        msg->msgtype = REQUEST_DOWNLOAD;
-        strcmp(msg->hashkey, hashkey);
-        msg->peerData->self_sockfd = connect_fd;
-        msg->peerData->self_port = PORT;
-        send_handler(msg);
+// request_peerlist
+void request_peerlist(int connect_fd, char *hashkey) {
+        MSG msg = {0};
+        msg.msgtype = PEER_LIST;
+        msg.hashkey = hashkey;
+        send_handler(connect_fd, &msg);
 }
-// TODO : response_download
+// TODO : request download
+// calc block_startpos and request to download a file by hashkey and send it 
+void request_download_func(int connect_fd, char *hashkey, char *downloading_filename) {
+        FILE *fd = fopen(downloading_filename, "r+");
+        if (fd == NULL) {
+                return;
+        }
+        
+        // ini start pos
+        MSG msg_send = {0};
+        msg_send->msgtype = REQUEST_DOWNLOAD;
+        strcmp(msg->hashkey, hashkey);
+        msg_send.dstData.self_sockfd = connect_fd;
+        msg_send.dstData.self_port = PORT;
+        send_handler(msg_send);
+}
+
+// TODO : response_upload
+DstData ini_dstData(MSG *msg_recv) {
+        // ini dstData's information
+        DstData dstData = {0};
+        dstData.dst_sockfd = msg_recv->dstData.dst_sockfd;
+        dstData.dst_port = msg_recv->dstData.dst_port;
+        
+        return 
+}
+
+// this func's block_size should calc the situation that file is at end
+void prepare_file_block(DstData *dstData, char *file_path) {
+
+        FILE *fd = fopen(file_path, "r");
+        if (fd == NULL) {
+                return block;
+        } 
+
+        // prepare block
+        block.data = malloc(block_size * sizeof(char));
+
+        int fwrite_ret = fwrite(block.data, 1, block_size, fd);
+        if (fwrite_ret == block_size) {
+                block.ok = 0;
+        }
+
+        free(block.data);
+        fclose(fd);
+
+        return;
+}
 
 int main(int argc, const char *argv[]) {
         // create socket stream
@@ -100,9 +146,9 @@ int main(int argc, const char *argv[]) {
                 perror("fork fail");
                 exit(EXIT_FAILURE);
         } else if (pid == 0) {  // son process, send msg
-                MSG send_msg = {0};
+                MSG msg_send = {0};
                 while(1) {
-                        send_msg = {0};
+                        msg_send = {0};
                         // TODO : send options
                 } 
                 exit(EXIT_SUCCESS);

@@ -11,26 +11,64 @@
 #include "protocol.h"
 #include "tracker.h"
 
-int request_dowload_func(HashHead *head, MSG *msg_recv, MSG *msg_send) {
-        HashNode *ret_node = find_hashNode_by_key(head, msg->hashkey);
+// handle peerlist operation
+int touch_request_peerlist(HashHead *head, MSG *msg_recv) {
+        HashNode *ret_node = find_hashNode_by_key(head, msg_recv->hashkey);
         if (ret_node == NULL) return ERROR;
-
         if (ret_node->peerHead->next != NULL) {
                 PeerData *peer_curr = ret_node->peerHead->next;
         } else {
                 return ERROR;
         }
-        
+        int peers_num = ret_node->peerHead->count;
+        return peers_num;
+}
+
+int handle_request_peerlist(HashHead *head, MSG *msg_recv) {
+        HashNode *ret_node = find_hashNode_by_key(head, msg_recv->hashkey);
+        if (ret_node == NULL) return ERROR;
+        if (ret_node->peerHead->next != NULL) {
+                PeerData *peer_curr = ret_node->peerHead->next;
+        } else {
+                return ERROR;
+        }
+        int peers_num = ret_node->peerHead->count;
+
+        PeerData *curr_node = ret_node->peerHead->next;
+        char buffer[L];
+        MSG msg_send = {0};
+        while(ret_node->peerHead->next != NULL) {
+                memeset(buffer, 0, L);
+                memset(&msg, 0, sizeof(MSG));
+                snprintf(buffer, L, "sodkfd : %d\t port : %d\nfilename : %s\nhashkey : %s\n", 
+                        curr_node->peerData->self_sock,
+                        curr_node->peerData->self_port,
+                        curr_node->filename,
+                        curr_node->hashkey;
+                );
+                strncpy(msg_send.block.data, buffer, L);
+                msg_send.block.dstData.dst_sockfd = msg_recv->dstData.self_sockfd;
+                msg_send.block.dstData.dst_port = msg_recv->dstData.self_port;
+        }
+        return OK;
+}
+
+int handle_request_dowload(HashHead *head, MSG *msg_recv) {
+        int peers_num;
+        if ((peers_num = touch_request_peerlist(head, msg_recv)) < 0) return; 
+        // send msg to each peer
+        MSG msg_send = {0};
         while(peer_curr != NULL) {
                 memset(msg_send, 0, sizeof(MSG));
+
                 msg_send->msgtype = RESPONSE_DOWNLOAD;
                 msg_send->hashkey = msg_recv->hashkey;
-                msg_send->peerData->dst_sockfd = msg_recv->peerData->self_sock;
-                msg_send->peerData->dst_port = msg_recv->peerData->self_port;
+                msg_send->dstData->dst_sockfd = msg_recv->peerData->self_sock;
+                msg_send->dstData->dst_port = msg_recv->peerData->self_port;
+                msg_send->
                 
                 send_handler(msg_send);
         }
-
 }
 
 // TODO : fullfill this
@@ -47,7 +85,8 @@ void tracker_msg_handler(HashHead *head, MSG *msg) {
                         break;
                 case REQUEST_DOWNLOAD:
                         // TODO : send msg to all sockfd under a hashnode, declare which file's block they should upload, and let them do RESPONSE_DOWNLOAD operation
-                        
+                        MSG *msg_send = {0};
+                        request_dowload_func(head, msg, msg_send);
                         break;
                 default:
                         break;
@@ -104,7 +143,7 @@ int main(int argc, const char *argv[]) {
                 // handle send/recv
                 while(1) {
                         MSG recv_msg = {0};
-                        MSG send_msg = {0};
+                        MSG msg_send = {0};
 
                         recv_handler(connect_fd, &recv_msg);
                         tracker_msg_handler(&recv_msg);
