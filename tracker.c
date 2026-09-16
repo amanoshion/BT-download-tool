@@ -8,21 +8,11 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#include <math.h>
 #include "protocol.h"
 #include "tracker.h"
 
 // handle peerlist operation
-int touch_request_peerlist(HashHead *head, MSG *msg_recv) {
-        HashNode *ret_node = find_hashNode_by_key(head, msg_recv->hashkey);
-        if (ret_node == NULL) return ERROR;
-        if (ret_node->peerHead->next != NULL) {
-                PeerData *peer_curr = ret_node->peerHead->next;
-        } else {
-                return ERROR;
-        }
-        int peers_num = ret_node->peerHead->count;
-        return peers_num;
-}
 
 int handle_request_peerlist(HashHead *head, MSG *msg_recv) {
         HashNode *ret_node = find_hashNode_by_key(head, msg_recv->hashkey);
@@ -49,25 +39,58 @@ int handle_request_peerlist(HashHead *head, MSG *msg_recv) {
                 strncpy(msg_send.block.data, buffer, L);
                 msg_send.block.dstData.dst_sockfd = msg_recv->dstData.self_sockfd;
                 msg_send.block.dstData.dst_port = msg_recv->dstData.self_port;
+                msg_send.block.dstData.peers_num = peers_num;
+                send_handler(msg_recv->dstData.self_sockfd, msg_send);
         }
         return OK;
 }
 
-int handle_request_dowload(HashHead *head, MSG *msg_recv) {
-        int peers_num;
-        if ((peers_num = touch_request_peerlist(head, msg_recv)) < 0) return; 
+// handle request download
+void split_block_for_peer(long *block_startsize, long *block_total_size, int peers_num) {
+        static int block_sort_id = peers_num;
+        long task_size = block_total_size - block_startsize;
+        long peer_task_size = floor(task_size / peers_num);
+        long peer_task_tail_size = task_size - peer_task_size*peers_num;
+        for (int i = 0; i < peers_num - 1; i++) {
+                // TODO
+                *block_startsize = block_sort_id*peer_task_size + block
+        }
+}
+int handle_request_download(HashHead *head, MSG *msg_recv) {
+        HashNode *ret_node = find_hashNode_by_key(head, msg_recv->hashkey);
+        if (ret_node == NULL) return ERROR;
+        if (ret_node->peerHead->next != NULL) {
+                PeerData *peer_curr = ret_node->peerHead->next;
+        } else {
+                return ERROR;
+        }      
+
         // send msg to each peer
         MSG msg_send = {0};
+
+        long block_startsize = msg_recv.dstData.block_startsize;
+        long block_total_size = msg_recv->dstData.block_total_size;
+        int peers_num = ret_node->peerHead->count;
         while(peer_curr != NULL) {
                 memset(msg_send, 0, sizeof(MSG));
 
-                msg_send->msgtype = RESPONSE_DOWNLOAD;
-                msg_send->hashkey = msg_recv->hashkey;
-                msg_send->dstData->dst_sockfd = msg_recv->peerData->self_sock;
-                msg_send->dstData->dst_port = msg_recv->peerData->self_port;
-                msg_send->
+                msg_send.msgtype = REQUEST_UPLOAD;
+                msg_send.hashkey = msg_recv->hashkey;
+                msg_send.dstData.dst_sockfd = msg_recv->peerData->self_sock;
+                msg_send.dstData.dst_port = msg_recv->peerData->self_port;
+                if (msg_recv->dstData.block_total_size == 0) {
+                        // calc file block_total_size
+                        msg_recv->dstData.block_total_size = ret_node->total_file_size;
+                }
+                msg_send.dstData.block_startsize = msg_recv->dstData.block_startsize;
+                msg_send.dstData.block_total_size = msg_recv->peerData->total_file_size;
+
+                msg_send.dstData.curr_size = curr_size;
+                // TODO : split file by current peer num
                 
+
                 send_handler(msg_send);
+                peer_curr = peer_curr->next;
         }
 }
 

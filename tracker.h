@@ -9,15 +9,10 @@
 #define ERROR -1
 #define OK 0
 
-// #define MAX_CONNECTED 1024
-#define FILE_SIZE 4096
 #define HASH_LEN 65
-#define MAX_HASH_TABLE_SIZE 256
-#define MAX_PEER_NUM_PER_FILE 128
 
 void ini_hash(HashHead *head) {
         // ini head 's basic var
-        head->max_size = MAX_HASH_TABLE_SIZE;
         head->count = 0;
         // ini full hashtables by head
         HashNode *curr = head->next;
@@ -29,7 +24,6 @@ void ini_hash(HashHead *head) {
                 peer_curr = curr->peerHead;
                 peer_curr = malloc(sizeof(PeerHead));
                 peer_curr->count = 0;
-                peer_curr->max_size = MAX_PEER_NUM_PER_FILE;
                 peer_curr->next = NULL;
 
                 memset(curr->hashkey, 0, HASH_LEN);
@@ -42,7 +36,7 @@ void ini_hash(HashHead *head) {
 void free_hashTable(HashHead *head) {
         HashNode *prev = NULL;
         HashNode *curr = head;
-        for (int i = 0; i < head->max_size; i++) {
+        for (int i = 0; i < head->count; i++) {
                 prev = curr;
                 if (curr->next != NULL) {
                         curr = curr->next;
@@ -50,7 +44,7 @@ void free_hashTable(HashHead *head) {
                 if (prev != NULL) {
                         PeerData *peer_prev = NULL;
                         PeerData *peer_curr = curr->peerHead->next;
-                        for (int j = 0; j < curr->peerHead->max_size; j++) {
+                        for (int j = 0; j < curr->peerHead->count; j++) {
                                 peer_prev = peer_curr;
                                 if (peer_curr->next != NULL) {
                                         peer_curr = peer_curr->next;
@@ -142,7 +136,8 @@ PeerData *find_peerNode_prev_by_sockfd(PeerData *head, int sockfd) {
 
 // register operation
 // befor using, PeerData should be initialized already
-int add_peerData(HashHead *head, char *hashkey, PeerData *data) {
+
+int add_peerData(HashHead *head, MSG *msg_recv) {
         HashNode *ret_prev_node = NULL;
         ret_prev_node = find_hashNode_prev_by_key(head, hashkey);
         HashNode *ret_node = ret_prev_node->next;
@@ -151,24 +146,24 @@ int add_peerData(HashHead *head, char *hashkey, PeerData *data) {
         if (ret_node == NULL) {
                 // ini new HashNode
                 new = malloc(sizeof(HashNode));
-                strncpy(new->hashkey, hashkey, HASH_LEN);
+                strncpy(new->hashkey, msg_recv->hashkey, HASH_LEN);
                 new->next = NULL;
                 new->peerHead = malloc(PeerHead);
                 new->peerHead->count = 0;
-                new->peerHead->max_size = MAX_PEER_NUM_PER_FILE;
-                peerHead->next = data;
+                new->peerHead->next = msg_recv->peerData;
+                new->peerHead->next->total_file_size = msg_recv->peerData->total_file_size;
                 new->peerHead->count++;
                 // add new HashNode
                 add_hashNode(head, new);
         } else {
                 // add PeerData
-                PeerData *peer_next = NULL;
+                PeerData *peer_next = msg_recv->peerData;
                 if (ret_node->peerHead->next != NULL) {
                         peer_next = ret_node->peerHead->next;
                 }
                 ret_node->peerHead->next = data;
                 data->next = peer_next;
-                ret_node->peerHead->max_size++;
+                ret_node->peerHead->count++;
         }
         return OK;
 }
@@ -182,7 +177,7 @@ int delete_hashNode(HashHead *head, char *hashkey) {
 
         PeerData *peer_prev = NULL;
         PeerData *peer_curr = curr->peerHead->next;
-        for (int j = 0; j < curr->peerHead->max_size; j++) {
+        for (int j = 0; j < curr->peerHead->count; j++) {
                 peer_prev = peer_curr;
                 if (peer_curr->next != NULL) {
                         peer_curr = peer_curr->next;
@@ -260,7 +255,7 @@ int file_blake2b(const char *filename, char *hashkey) {  // output's len shoud b
         }
 
         unsigned char hash[crypto_generichash_BYTES]; // = 32
-        unsigned char buffer[FILE_SIZE] = {0};
+        unsigned char buffer[MAX_FILE_SIZE] = {0};
         size_t bytes_read;
 
         crypto_generichash_state state;
