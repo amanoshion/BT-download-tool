@@ -86,8 +86,6 @@ int handle_request_download(HashHead *head, MSG *msg_recv) {
                 msg_send.dstData.block_total_size = msg_recv->peerData->total_file_size;
 
                 msg_send.dstData.curr_size = curr_size;
-                // TODO : split file by current peer num
-                
 
                 send_handler(msg_send);
                 peer_curr = peer_curr->next;

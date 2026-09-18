@@ -63,11 +63,12 @@ typedef struct Block_DstData {
         long block_startsize;
         long block_total_size;
 
+        int puzzle_id;
         int peers_num;
 } Block_DstData;
 
 typedef struct Block {
-        Block_DstData dstData;
+        Block_DstData dstData;  // upload, download use
         _Bool ok;
         char data[L]; 
 } Block;
@@ -79,7 +80,7 @@ typedef struct {
         PeerData *peerData;     
         // upload/download use
         Block block;            
-        Block_DstData dstData;
+        Block_DstData dstData;  // query peers use
 } MSG;
 
 int recv_handler(int connect_fd, MSG *msg_send) {

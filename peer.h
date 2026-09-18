@@ -6,6 +6,7 @@ typedef struct Puzzle{
         long peer_block_startsize;
         int peer_block_size;
         long peer_block_endsize;
+        int puzzel_id;
         _Bool isok;     // 0 : ok ; -1 : not ok
 } Puzzle;
 
