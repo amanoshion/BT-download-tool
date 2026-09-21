@@ -7,6 +7,10 @@
 #define MAX_FILE_SIZE 4096
 #define MAX_PEER_CONNECTION 128
 
+#define HASH_LEN 65
+#define NAME_LEN 64
+#define PATH_LEN 256
+
 #define OK 0
 #define ERROR -1
 
@@ -14,74 +18,74 @@
 #define M 256
 #define L 1024
 
-typedef struct PeerData {
-        int self_sockfd;
-        int self_port;
-        char filename[S];
-        char filepath[M];
-        long total_file_size;
-        PeerData *next;
-} PeerData;
+// typedef struct PeerData {
+//         int self_sockfd;
+//         int self_port;
+//         char filename[S];
+//         char filepath[M];
+//         long total_file_size;
+//         PeerData *next;
+// } PeerData;
 
-typedef struct PeerHead {
-        PeerData *next;
-        int count;
-} PeerHead;
+// typedef struct PeerHead {
+//         PeerData *next;
+//         int count;
+// } PeerHead;
 
-typedef struct HashNode {
-        PeerData *peerHead;
-        char hashkey[HASH_LEN];
-        long total_file_size;
-        HashNode *next;
-} HashNode;
+// typedef struct HashNode {
+//         PeerHead *peerHead;
+//         char hashkey[HASH_LEN];
+//         long total_file_size;
+//         HashNode *next;
+// } HashNode;
 
-typedef struct {
-        HashNode *next;
-        int count;
-} HashHead;
+// typedef struct {
+//         HashNode *next;
+//         int count;
+// } HashHead;
 
-typedef enum {
-        REGISTER,       
-        UNREGISTER,
-        PEER_LIST,
-        REQUEST_DOWNLOAD,
-        RESPONSE_DOWNLOAD,
-        REQUEST_UPLOAD,
-        RESPONSE_UPLOAD
-} MsgType;
+// typedef enum {
+//         REGISTER,       
+//         UNREGISTER,
+//         PEER_LIST,
+//         REQUEST_DOWNLOAD,
+//         RESPONSE_DOWNLOAD,
+//         REQUEST_UPLOAD,
+//         RESPONSE_UPLOAD
+// } MsgType;
 
-typedef struct Block_DstData {
-        int dst_sockfd;
-        int dst_port;
-        int self_sockfd;
-        int self_port;
+// typedef struct Block_DstData {
+//         int dst_sockfd;
+//         int dst_port;
+//         int self_sockfd;
+//         int self_port;
         
-        long peer_block_startsize;
-        int peer_block_size;
-        long peer_block_endsize;
+//         long peer_block_startsize;
+//         int peer_block_size;
+//         long peer_block_endsize;
 
-        long block_startsize;
-        long block_total_size;
+//         long block_startsize;
+//         long block_total_size;
 
-        int puzzle_id;
-        int peers_num;
-} Block_DstData;
+//         int puzzle_id;
+//         int peers_num;
+// } Block_DstData;
 
-typedef struct Block {
-        Block_DstData dstData;  // upload, download use
-        _Bool ok;
-        char data[L]; 
-} Block;
+// typedef struct Block {
+//         Block_DstData dstData;  // upload, download use
+//         _Bool ok;
+//         char data[L]; 
+// } Block;
 
-typedef struct {
-        MsgType msgtype;
-        char *hashkey;
-        // register,query use
-        PeerData *peerData;     
-        // upload/download use
-        Block block;            
-        Block_DstData dstData;  // query peers use
-} MSG;
+// typedef struct {
+//         MsgType msgtype;
+//         char *hashkey;
+//         // register,query use
+//         PeerData *peerData;     
+//         // upload/download use
+//         Block block;            
+//         Block_DstData dstData;  // query peers use
+// } MSG;
 
 int recv_handler(int connect_fd, MSG *msg_send) {
         int nbytes;
